@@ -1,0 +1,513 @@
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FamTracker - Combined</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Courier+Prime:wght@400;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; transition: 0.3s; }
+        .active-menu { background: rgba(255,255,255,0.2) !important; border-left: 5px solid #facc15; }
+        .hidden-section { display: none !important; }
+        .sidebar-gradient { background: linear-gradient(180deg, #1e3a8a 0%, #312e81 100%); }
+        body.parent-mode-active { font-size: 1.6rem; }
+        body.parent-mode-active button, body.parent-mode-active input { font-size: 1.3rem; }
+        .item-done { text-decoration: line-through; opacity: 0.5; }
+        
+        #receipt-template { 
+            position: absolute; left: -9999px; top: 0;
+            width: 350px; background: white; padding: 30px; 
+            font-family: 'Courier Prime', monospace; color: #333;
+        }
+    </style>
+</head>
+<body class="bg-[#f8fafc] flex flex-col md:flex-row min-h-screen text-slate-800">
+
+    <!-- Template Struk/Nota Cetak -->
+    <div id="receipt-template">
+        <div style="text-align: center; border-bottom: 3px double #000; padding-bottom: 15px; margin-bottom: 15px;">
+            <p style="font-size: 26px; font-weight: 700; margin: 0; letter-spacing: 2px;">FAMTRACKER</p>
+            <p id="receipt-date-info" style="font-size: 11px; margin: 5px 0; color: #555;"></p>
+        </div>
+        <div style="font-size: 13px; margin-bottom: 15px; display: flex; justify-content: space-between;">
+            <span><b>USER:</b> <span id="receipt-user-name"></span></span>
+            <span style="font-style: italic;">Finance Report</span>
+        </div>
+        <div style="margin-bottom: 5px; font-weight: bold; font-size: 12px; border-bottom: 1px solid #000; padding-bottom: 5px;">CATATAN TRANSAKSI:</div>
+        <div id="receipt-items" style="min-height: 100px;"></div>
+        <div style="border-top: 1px solid #000; margin-top: 15px; padding-top: 10px;">
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;">
+                <span>SALDO SAAT INI</span>
+                <span id="receipt-balance"></span>
+            </div>
+        </div>
+        <div style="text-align: center; margin-top: 25px; font-size: 11px; border-top: 2px dashed #bbb; padding-top: 15px;">
+            <p style="margin-bottom: 5px;">Bukti kendali keuangan keluarga</p>
+            <p style="font-weight: bold; letter-spacing: 1px;">*** TERIMA KASIH ***</p>
+            <p style="font-size: 9px; margin-top: 15px; color: #888;">Created by: Wafa Ayla Nisa'</p>
+        </div>
+    </div>
+
+    <!-- Layar Login & Masuk Nama -->
+    <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center bg-indigo-950 p-6">
+        <div class="bg-white p-8 rounded-[40px] shadow-2xl w-full max-w-[320px] text-center border-4 border-indigo-50">
+            <h1 class="text-2xl font-black text-indigo-900 mb-1 uppercase tracking-tighter">FAMTRACKER</h1>
+            <p class="text-[9px] text-slate-400 uppercase tracking-widest font-bold mb-6">Family Financial Solutions</p>
+            
+            <div id="login-form" class="space-y-4">
+                <input type="password" id="pin-input" maxlength="4" class="w-full text-center text-3xl p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all" placeholder="****">
+                <button onclick="cekPin()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">MASUK</button>
+            </div>
+            
+            <div id="name-form" class="hidden space-y-4">
+                <p class="text-sm font-bold text-slate-600">Halo! Siapa namamu?</p>
+                <input type="text" id="user-name-input" class="w-full text-center p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold" placeholder="Masukkan Nama">
+                <div class="flex items-center justify-center gap-2 py-2">
+                    <input type="checkbox" id="remember-me" class="w-4 h-4 cursor-pointer">
+                    <label for="remember-me" class="text-xs font-bold text-slate-500 cursor-pointer">Simpan nama kamu?</label>
+                </div>
+                <button onclick="prosesNamaDanMasuk()" class="w-full bg-green-600 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-green-700 active:scale-95 transition-all">MULAI SEKARANG</button>
+            </div>
+            
+            <p class="mt-8 text-[9px] text-gray-400 uppercase font-black">Oleh: Wafa Ayla Nisa'</p>
+        </div>
+    </div>
+
+    <!-- Sidebar / Navigasi -->
+    <aside id="sidebar" class="sidebar-gradient text-white w-full md:w-80 hidden-section md:flex flex-col shadow-2xl overflow-y-auto">
+        <div class="p-10 text-center border-b border-white/10">
+            <h1 class="text-2xl font-black italic tracking-widest uppercase">FamTracker</h1>
+            <p class="text-[10px] text-yellow-400 font-extrabold uppercase mt-1">MTs Pester Al-Fauzan</p>
+        </div>
+        <nav class="flex-grow px-4 py-6 space-y-1">
+            <button onclick="switchPage('dash')" id="btn-dash" class="menu-item w-full flex items-center px-6 py-4 rounded-2xl active-menu font-bold transition"><i class="fas fa-plus-circle mr-4 text-yellow-400"></i> Input Data</button>
+            <button onclick="switchPage('masuk')" id="btn-masuk" class="menu-item w-full flex items-center px-6 py-4 rounded-2xl font-bold transition"><i class="fas fa-arrow-down mr-4 text-green-400"></i> Riwayat Masuk</button>
+            <button onclick="switchPage('keluar')" id="btn-keluar" class="menu-item w-full flex items-center px-6 py-4 rounded-2xl font-bold transition"><i class="fas fa-arrow-up mr-4 text-red-400"></i> Riwayat Keluar</button>
+            <button onclick="switchPage('target')" id="btn-target" class="menu-item w-full flex items-center px-6 py-4 rounded-2xl font-bold transition"><i class="fas fa-bullseye mr-4 text-yellow-400"></i> Target Nabung</button>
+            <button onclick="switchPage('kebutuhan')" id="btn-kebutuhan" class="menu-item w-full flex items-center px-6 py-4 rounded-2xl font-bold transition"><i class="fas fa-list-check mr-4 text-yellow-400"></i> Kebutuhan Rumah</button>
+            <button onclick="switchPage('grafik')" id="btn-grafik" class="menu-item w-full flex items-center px-6 py-4 rounded-2xl font-bold transition"><i class="fas fa-chart-pie mr-4 text-yellow-400"></i> Grafik & Analisis</button>
+            <hr class="border-white/10 my-4">
+            <button onclick="laporanSistem()" class="w-full bg-indigo-500 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 mb-2 text-sm"><i class="fas fa-microphone"></i> LAPORAN SISTEM</button>
+            <button onclick="gantiNama()" class="w-full bg-white/10 text-white py-3 rounded-2xl font-bold text-xs mb-2 uppercase">Ganti Nama</button>
+            <button onclick="toggleParentMode()" class="w-full bg-green-500 text-white py-4 rounded-2xl font-black">FRIENDLY PARENTS</button>
+            <button onclick="logout()" class="w-full bg-red-500/20 text-red-200 py-4 rounded-2xl font-bold mt-4">Keluar</button>
+        </nav>
+    </aside>
+
+    <!-- Konten Utama -->
+    <main id="main-app" class="flex-grow hidden-section h-screen overflow-y-auto">
+        
+        <!-- Halaman Dashboard / Input -->
+        <section id="page-dash" class="page-section p-6 md:p-12">
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-indigo-600 p-12 rounded-[50px] shadow-2xl mb-10 text-white">
+                    <p id="salam-user" class="text-xl md:text-2xl font-black uppercase opacity-90 mb-2">Halo!</p>
+                    <p class="text-[10px] font-bold uppercase opacity-70 mb-1">Total Saldo Utama</p>
+                    <h3 id="total-saldo" class="text-5xl font-black tracking-tight">Rp 0</h3>
+                </div>
+                <div class="bg-white p-8 rounded-[40px] shadow-sm border">
+                    <h4 class="font-black text-indigo-900 mb-6 uppercase tracking-wider">Catat Transaksi Baru</h4>
+                    <input type="text" id="desc" class="w-full p-4 bg-slate-50 rounded-2xl mb-4 font-bold outline-none" placeholder="Keterangan">
+                    <input type="text" id="amount" onkeyup="formatRp(this)" class="w-full p-4 bg-slate-50 rounded-2xl mb-4 font-black text-indigo-600 text-xl outline-none" placeholder="Rp 0">
+                    <select id="category" class="w-full p-4 bg-slate-50 rounded-2xl mb-4 font-bold outline-none">
+                        <option value="Pemasukan">💰 Pemasukan (+)</option>
+                        <option value="Jajan">🍕 Jajan</option>
+                        <option value="Pendidikan">🎓 Pendidikan</option>
+                        <option value="Listrik">⚡ Tagihan/Listrik</option>
+                        <option value="Lainnya">🧩 Lain-lain</option>
+                    </select>
+                    <button onclick="simpanDashboard()" class="w-full bg-slate-900 text-white py-5 rounded-2xl font-black hover:scale-105 transition">SIMPAN DATA</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Halaman Riwayat Pemasukan -->
+        <section id="page-masuk" class="page-section hidden p-12">
+            <div class="max-w-4xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-black text-green-700 uppercase">💰 Riwayat Pemasukan</h2>
+                    <button onclick="hapusHalaman('dash')" class="text-red-500 font-bold text-[10px] uppercase bg-red-50 px-3 py-1 rounded-full">Reset Semua</button>
+                </div>
+                <div id="masuk-list" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <!-- Halaman Riwayat Pengeluaran -->
+        <section id="page-keluar" class="page-section hidden p-12">
+            <div class="max-w-4xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-black text-red-700 uppercase">💸 Riwayat Pengeluaran</h2>
+                    <button onclick="hapusHalaman('dash')" class="text-red-500 font-bold text-[10px] uppercase bg-red-50 px-3 py-1 rounded-full">Reset Semua</button>
+                </div>
+                <div id="keluar-list" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <!-- Halaman Target Nabung -->
+        <section id="page-target" class="page-section hidden p-12">
+            <div class="max-w-2xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-black text-indigo-900 uppercase">🎯 Target Nabung Harian</h2>
+                    <button onclick="hapusHalaman('target')" class="text-red-500 text-xs font-bold uppercase underline">Hapus Semua</button>
+                </div>
+                <div id="target-list" class="grid grid-cols-1 gap-4 mb-8"></div>
+                <div class="bg-white p-8 rounded-[40px] shadow-sm border">
+                    <input type="text" id="target-title" class="w-full p-4 bg-slate-50 rounded-2xl mb-4 font-bold outline-none" placeholder="Nama Impian">
+                    <input type="text" id="target-goal" onkeyup="formatRp(this)" class="w-full p-4 bg-slate-50 rounded-2xl mb-4 font-black text-green-600 outline-none" placeholder="Target Harga Rp">
+                    <button onclick="simpanTarget()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black">PASANG TARGET</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Halaman Kebutuhan Rumah -->
+        <section id="page-kebutuhan" class="page-section hidden p-12">
+            <div class="max-w-2xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-black text-indigo-900 uppercase">🛒 Kebutuhan Rumah</h2>
+                    <button onclick="hapusHalaman('kebutuhan')" class="text-red-500 text-xs font-bold uppercase underline">Hapus List</button>
+                </div>
+                <div class="flex gap-2 mb-6">
+                    <input type="text" id="new-item" class="flex-grow p-4 bg-white border rounded-2xl font-bold shadow-sm outline-none" placeholder="Tambah belanjaan...">
+                    <button onclick="tambahKebutuhan()" class="bg-indigo-600 text-white px-8 rounded-2xl font-black"><i class="fas fa-plus"></i></button>
+                </div>
+                <div id="shopping-list" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <!-- Halaman Grafik & Analisis -->
+        <section id="page-grafik" class="page-section hidden p-12">
+            <div class="max-w-5xl mx-auto">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <h2 class="text-2xl font-black text-indigo-900 uppercase">📊 Analisis Keuangan</h2>
+                    <div class="flex gap-2">
+                        <input type="date" id="filter-date" onchange="updateChart()" class="p-2 border rounded-xl font-bold text-sm outline-none">
+                        <button onclick="saveChartImage()" class="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-tighter shadow-lg active:scale-95 transition-all">
+                            <i class="fas fa-file-invoice-dollar mr-2"></i>Simpan Laporan (Gambar)
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white p-8 rounded-[40px] shadow-sm border mb-8 h-64">
+                    <canvas id="myChart"></canvas>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-white p-8 rounded-[40px] shadow-sm border">
+                        <h4 class="text-center font-bold mb-4 text-green-600 uppercase text-xs">Proporsi Pemasukan</h4>
+                        <canvas id="chartMasuk" height="250"></canvas>
+                    </div>
+                    <div class="bg-white p-8 rounded-[40px] shadow-sm border">
+                        <h4 class="text-center font-bold mb-4 text-red-600 uppercase text-xs">Proporsi Pengeluaran</h4>
+                        <canvas id="chartKeluar" height="250"></canvas>
+                    </div>
+                </div>
+                <div class="bg-indigo-900 text-white p-10 rounded-[40px] shadow-xl">
+                    <h4 class="font-black text-yellow-400 mb-2 uppercase tracking-widest text-sm">Motivasi Hari Ini</h4>
+                    <p id="tips-text" class="text-xl font-bold italic leading-relaxed">"Satu langkah kecil menabung hari ini, satu lompatan besar di masa depan."</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Script Logic Javascript -->
+    <script>
+        const synth = window.speechSynthesis;
+        let voices = [];
+        let myChart = null, chartMasuk = null, chartKeluar = null;
+
+        function initVoices() { voices = synth.getVoices(); }
+        initVoices();
+        if (speechSynthesis.onvoiceschanged !== undefined) { speechSynthesis.onvoiceschanged = initVoices; }
+
+        function bicara(teks) {
+            if (!teks) return;
+            synth.cancel();
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(teks);
+                utterance.lang = 'id-ID';
+                const idVoice = voices.find(v => v.lang.includes('id-ID') && (v.name.includes('Google') || v.name.includes('Natural'))) || voices.find(v => v.lang.includes('id-ID'));
+                if (idVoice) utterance.voice = idVoice;
+                utterance.rate = 1.1; utterance.pitch = 1.2;
+                synth.speak(utterance);
+            }, 50);
+        }
+
+        function masukAplikasi(nama) {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('sidebar').classList.remove('hidden-section');
+            document.getElementById('main-app').classList.remove('hidden-section');
+            document.getElementById('salam-user').innerText = "Halo, " + nama + "!";
+            document.getElementById('filter-date').valueAsDate = new Date();
+            bicara(`Halo ${nama}, sistem siap digunakan.`);
+            muatUlang();
+        }
+
+        function simpanDashboard() {
+            const d = document.getElementById('desc').value, a = document.getElementById('amount').value, c = document.getElementById('category').value;
+            if(!d || !a) return;
+            const val = parseInt(a.replace(/\./g, ''));
+            let db = JSON.parse(localStorage.getItem('famt_db')) || [];
+            db.push({ desc: d, amount: a, cat: c, date: new Date().toLocaleDateString('en-CA'), val: val });
+            localStorage.setItem('famt_db', JSON.stringify(db));
+            
+            if(c === "Pemasukan") bicara(`Alhamdulillah ${d} berhasil tercatat`);
+            else if(c === "Jajan") {
+                if(val < 40000) bicara("Jajan receh, tabungan kece");
+                else bicara("Lidah dimanja, dompet disiksa");
+            }
+            else if(c === "Pendidikan") bicara("Lelahnya cari uang, terbayar saat anak wisuda");
+            else if(c === "Listrik") bicara("Token bunyi itu polusi, saklar mati itu solusi");
+            else bicara("Beli yang butuh, simpan yang sisa");
+
+            document.getElementById('desc').value = ""; document.getElementById('amount').value = "";
+            muatUlang();
+        }
+
+        async function saveChartImage() {
+            const db = JSON.parse(localStorage.getItem('famt_db')) || [];
+            const nama = localStorage.getItem('famt_username_saved') || 'Pengguna';
+            const totalSaldo = document.getElementById('total-saldo').innerText;
+            const tgl = new Date().toLocaleDateString('id-ID', { dateStyle: 'long' });
+            const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+            document.getElementById('receipt-date-info').innerText = `${tgl} | ${jam}`;
+            document.getElementById('receipt-user-name').innerText = nama.toUpperCase();
+            document.getElementById('receipt-balance').innerText = totalSaldo;
+
+            let rincianHTML = '';
+            db.slice(-10).reverse().forEach(item => {
+                const simbol = item.cat === 'Pemasukan' ? '(+)' : '(-)';
+                const color = item.cat === 'Pemasukan' ? '#166534' : '#000';
+                rincianHTML += `
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #eee; padding: 8px 0; font-size: 12px;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold; text-transform: uppercase;">${item.desc}</div>
+                            <div style="font-size: 10px; color: #666;">${item.cat}</div>
+                        </div>
+                        <div style="align-self: center; font-weight: bold; color: ${color};">
+                            ${simbol} ${item.amount}
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('receipt-items').innerHTML = rincianHTML || '<p style="text-align:center;">Belum ada data</p>';
+
+            const receiptEl = document.getElementById('receipt-template');
+            try {
+                const canvas = await html2canvas(receiptEl, { scale: 2, backgroundColor: "#ffffff" });
+                const link = document.createElement('a');
+                link.download = `Struk_FamTracker_${nama}_${new Date().getTime()}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                bicara("Gambar laporan sudah berhasil disimpan di galeri kamu, Wap.");
+            } catch (err) { alert("Gagal menyimpan gambar"); }
+        }
+
+        function switchPage(p) {
+            document.querySelectorAll('.page-section').forEach(sec => sec.classList.add('hidden'));
+            document.querySelectorAll('.menu-item').forEach(btn => btn.classList.remove('active-menu'));
+            document.getElementById('page-' + p).classList.remove('hidden');
+            document.getElementById('btn-' + p).classList.add('active-menu');
+            if(p === 'grafik') { updateChart(); updateTips(); }
+            if(p === 'masuk') muatRiwayat('Pemasukan');
+            if(p === 'keluar') muatRiwayat('Pengeluaran');
+            if(p === 'kebutuhan') muatKebutuhan();
+            if(p === 'target') muatTarget();
+            if(p === 'dash') muatUlang();
+        }
+
+        function cekPin() {
+            if(document.getElementById('pin-input').value === "1234") {
+                const nama = localStorage.getItem('famt_username_saved');
+                if (nama) masukAplikasi(nama);
+                else {
+                    document.getElementById('login-form').classList.add('hidden');
+                    document.getElementById('name-form').classList.remove('hidden');
+                }
+            } else { bicara("Pin salah."); }
+        }
+
+        function prosesNamaDanMasuk() {
+            const nama = document.getElementById('user-name-input').value;
+            const simpan = document.getElementById('remember-me').checked;
+            if(!nama) return;
+            if(simpan) localStorage.setItem('famt_username_saved', nama);
+            masukAplikasi(nama);
+        }
+
+        function formatRp(el) { 
+            let v = el.value.replace(/[^0-9]/g, ""); 
+            if (v) el.value = new Intl.NumberFormat('id-ID').format(v); 
+        }
+
+        function muatUlang() {
+            const db = JSON.parse(localStorage.getItem('famt_db')) || [];
+            let total = 0; db.forEach(i => { const isP = i.cat === 'Pemasukan'; total += isP ? i.val : -i.val; });
+            document.getElementById('total-saldo').innerText = "Rp " + new Intl.NumberFormat('id-ID').format(total);
+        }
+
+        function muatRiwayat(tipe) {
+            const db = JSON.parse(localStorage.getItem('famt_db')) || [];
+            const container = document.getElementById(tipe === 'Pemasukan' ? 'masuk-list' : 'keluar-list');
+            if(!container) return;
+            container.innerHTML = '';
+            db.slice().reverse().forEach((i, idx) => {
+                const isMatch = (tipe === 'Pemasukan') ? (i.cat === 'Pemasukan') : (i.cat !== 'Pemasukan');
+                if(isMatch) {
+                    container.innerHTML += `<div class="p-4 bg-white rounded-2xl border flex justify-between items-center mb-2 shadow-sm">
+                        <div><b>${i.desc}</b><br><small class="text-slate-400">${i.cat} • ${i.date}</small></div>
+                        <div class="text-right"><b class="${tipe==='Pemasukan'?'text-green-600':'text-red-500'}">Rp${i.amount}</b><br>
+                        <button onclick="hapusRiwayatSatu(${db.length - 1 - idx}, '${tipe}')" class="text-[10px] text-red-400 font-bold uppercase">Hapus</button></div>
+                    </div>`;
+                }
+            });
+        }
+
+        function hapusRiwayatSatu(idx, tipe) {
+            let db = JSON.parse(localStorage.getItem('famt_db'));
+            db.splice(idx, 1);
+            localStorage.setItem('famt_db', JSON.stringify(db));
+            muatUlang(); muatRiwayat(tipe);
+        }
+
+        function updateChart() {
+            const db = JSON.parse(localStorage.getItem('famt_db')) || [];
+            const filterDate = document.getElementById('filter-date').value;
+            const dataFiltered = db.filter(i => i.date === filterDate);
+            const labels = ["Pemasukan", "Jajan", "Pendidikan", "Listrik", "Lainnya"];
+            const colors = ['#22c55e', '#ef4444', '#eab308', '#3b82f6', '#64748b'];
+            const datasetHarian = labels.map(l => dataFiltered.filter(i => i.cat === l).reduce((a, b) => a + b.val, 0));
+
+            const ctx = document.getElementById('myChart').getContext('2d');
+            if(myChart) myChart.destroy();
+            
+            myChart = new Chart(ctx, { 
+                type: 'line', 
+                data: { 
+                    labels: labels, 
+                    datasets: [{ 
+                        label: 'Aktivitas Harian',
+                        data: datasetHarian, 
+                        borderColor: '#4f46e5', 
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)', 
+                        fill: true,
+                        tension: 0.4, 
+                        pointRadius: 6,
+                        pointBackgroundColor: '#4f46e5',
+                        borderWidth: 3
+                    }] 
+                }, 
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            const ctxM = document.getElementById('chartMasuk').getContext('2d');
+            const dataMasuk = db.filter(i => i.cat === 'Pemasukan');
+            const mapMasuk = {}; dataMasuk.forEach(i => mapMasuk[i.desc] = (mapMasuk[i.desc] || 0) + i.val);
+            if(chartMasuk) chartMasuk.destroy();
+            chartMasuk = new Chart(ctxM, { type: 'doughnut', data: { labels: Object.keys(mapMasuk), datasets: [{ data: Object.values(mapMasuk), backgroundColor: ['#22c55e', '#4ade80', '#166534'] }] }});
+
+            const ctxK = document.getElementById('chartKeluar').getContext('2d');
+            const dataKeluar = db.filter(i => i.cat !== 'Pemasukan');
+            const mapKeluar = {}; dataKeluar.forEach(i => mapKeluar[i.cat] = (mapKeluar[i.cat] || 0) + i.val);
+            if(chartKeluar) chartKeluar.destroy();
+            chartKeluar = new Chart(ctxK, { type: 'doughnut', data: { labels: Object.keys(mapKeluar), datasets: [{ data: Object.values(mapKeluar), backgroundColor: ['#ef4444', '#f87171', '#991b1b'] }] }});
+        }
+
+        function simpanTarget() {
+            const t = document.getElementById('target-title').value, g = document.getElementById('target-goal').value;
+            if(!t || !g) return;
+            let tg = JSON.parse(localStorage.getItem('famt_target')) || [];
+            tg.push({ title: t, goal: parseInt(g.replace(/\./g, '')), current: 0 });
+            localStorage.setItem('famt_target', JSON.stringify(tg));
+            document.getElementById('target-title').value = ""; document.getElementById('target-goal').value = "";
+            muatTarget(); bicara("Target harian sudah dipasang.");
+        }
+
+        function muatTarget() {
+            const tg = JSON.parse(localStorage.getItem('famt_target')) || [];
+            const container = document.getElementById('target-list');
+            container.innerHTML = tg.map((item, idx) => {
+                const persen = Math.min((item.current / item.goal) * 100, 100).toFixed(0);
+                return `<div class="bg-white p-6 rounded-3xl border shadow-sm">
+                    <div class="flex justify-between font-bold mb-1"><span>${item.title}</span> <span class="${item.current>=item.goal?'text-green-600':''}">${persen}%</span></div>
+                    <div class="text-[10px] text-gray-500 mb-3">Terkumpul: Rp ${new Intl.NumberFormat('id-ID').format(item.current)} / Rp ${new Intl.NumberFormat('id-ID').format(item.goal)}</div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 mb-4"><div class="bg-indigo-600 h-2 rounded-full" style="width:${persen}%"></div></div>
+                    <div class="flex gap-2 items-center">
+                        <button onclick="nabungHarian(${idx}, 3000)" class="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-xl font-bold text-xs">+3rb</button>
+                        <button onclick="nabungHarian(${idx}, 5000)" class="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-xl font-bold text-xs">+5rb</button>
+                        <input type="text" id="manual-${idx}" onkeyup="formatRp(this)" class="w-24 p-2 bg-slate-50 border rounded-xl text-xs font-bold" placeholder="Lainnya">
+                        <button onclick="nabungHarian(${idx}, 0)" class="bg-green-500 text-white px-3 py-2 rounded-xl font-bold text-xs">OK</button>
+                        ${item.current >= item.goal ? `<button onclick="hapusTargetSatu(${idx})" class="ml-auto bg-red-100 text-red-600 px-3 py-2 rounded-xl font-bold text-xs">HAPUS</button>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function nabungHarian(idx, nominal) {
+            let tg = JSON.parse(localStorage.getItem('famt_target'));
+            let inputManual = document.getElementById(`manual-${idx}`).value;
+            let add = nominal === 0 ? parseInt(inputManual.replace(/\./g, '')) : nominal;
+            if(isNaN(add) || add <= 0) return;
+            tg[idx].current += add;
+            localStorage.setItem('famt_target', JSON.stringify(tg)); muatTarget();
+            bicara(`Tabungan sebesar ${new Intl.NumberFormat('id-ID').format(add)} disimpan`);
+            if(tg[idx].current >= tg[idx].goal) { setTimeout(() => { bicara("Target tercapai!"); alert("Target tercapai!"); }, 1000); }
+        }
+
+        function tambahKebutuhan() {
+            const val = document.getElementById('new-item').value; if(!val) return;
+            let list = JSON.parse(localStorage.getItem('famt_kebutuhan')) || [];
+            list.push({ text: val, done: false }); localStorage.setItem('famt_kebutuhan', JSON.stringify(list));
+            document.getElementById('new-item').value = ""; muatKebutuhan();
+        }
+
+        function muatKebutuhan() {
+            const list = JSON.parse(localStorage.getItem('famt_kebutuhan')) || [];
+            const container = document.getElementById('shopping-list');
+            container.innerHTML = list.map((item, idx) => `<div class="flex justify-between items-center bg-white p-4 rounded-2xl border shadow-sm">
+                <div class="flex items-center gap-3"><input type="checkbox" onchange="toggleCek(${idx})" ${item.done ? 'checked' : ''} class="w-5 h-5 cursor-pointer"><span class="font-bold ${item.done?'item-done':''}">${item.text}</span></div>
+                <button onclick="hapusItem(${idx})" class="text-red-400"><i class="fas fa-trash-can"></i></button></div>`).join('');
+        }
+
+        function toggleCek(idx) {
+            let list = JSON.parse(localStorage.getItem('famt_kebutuhan')); list[idx].done = !list[idx].done;
+            localStorage.setItem('famt_kebutuhan', JSON.stringify(list)); muatKebutuhan();
+        }
+
+        function hapusItem(idx) {
+            let list = JSON.parse(localStorage.getItem('famt_kebutuhan')); list.splice(idx, 1);
+            localStorage.setItem('famt_kebutuhan', JSON.stringify(list)); muatKebutuhan();
+        }
+
+        function updateTips() {
+            const motivasi = ["Hemat pangkal kaya!", "Uang kecil hari ini adalah uang besar esok.", "Sedikit demi sedikit menjadi bukit."];
+            document.getElementById('tips-text').innerText = `"${motivasi[Math.floor(Math.random() * motivasi.length)]}"`;
+        }
+
+        function hapusHalaman(tipe) {
+            if(!confirm("Hapus data?")) return;
+            if(tipe === 'dash') { localStorage.removeItem('famt_db'); muatUlang(); muatRiwayat('Pemasukan'); muatRiwayat('Pengeluaran'); }
+            else if(tipe === 'target') { localStorage.removeItem('famt_target'); muatTarget(); }
+            else if(tipe === 'kebutuhan') { localStorage.removeItem('famt_kebutuhan'); muatKebutuhan(); }
+            bicara("Data telah dibersihkan");
+        }
+
+        function laporanSistem() {
+            const total = document.getElementById('total-saldo').innerText;
+            bicara(`Saldo anda ${total.replace('Rp ', '')}.`);
+        }
+
+        function gantiNama() { if(confirm("Ganti profil?")) { localStorage.removeItem('famt_username_saved'); location.reload(); } }
+        function toggleParentMode() { document.body.classList.toggle('parent-mode-active'); }
+        function logout() { location.reload(); }
+    </script>
+</body>
+</html>
+```
